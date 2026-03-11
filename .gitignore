@@ -1,0 +1,27 @@
+# OS and editor files
+.DS_Store
+Thumbs.db
+.vscode/
+
+# IntelliJ IDEA local state
+**/.idea/workspace.xml
+**/.idea/tasks.xml
+**/.idea/shelf/
+**/.idea/httpRequests/
+**/.idea/dataSources/
+**/.idea/dataSources.local.xml
+**/.idea/mavenHomeManager.xml
+
+# Java and Maven build outputs
+**/target/
+**/build/
+**/out/
+**/*.class
+
+# Python caches
+**/__pycache__/
+**/.pytest_cache/
+
+# Temporary files
+*.log
+*.tmp
