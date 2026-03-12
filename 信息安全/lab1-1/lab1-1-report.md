@@ -29,11 +29,17 @@ $$
 1. 若f(Y(i+1)) \le f(Y(i)), 说明优化了，接受第i+1步的移动。\\
 2. 若f(Y(i+1)) > f(Y(i)), 虽然没有优化，但是提供了一个跳出可能的局部最优解的机会，我们以一定的概率来接受第i+1步移动。\\
 这里的概率遵循Metroplis准则。\\
-p=e^{-\frac{\Delta E}{kt}}, t代表温度。
+p=e^{-\frac{\Delta E}{kt}}, t代表温度。 实际上这就是高中学过的玻尔兹曼因子， k是玻尔兹曼常数。
 $$
 自然界中，如果对物体进行快速冷却(Quenching)，物体最后会处于非晶态，能量并不最低。如果对物体进行缓慢冷却，也就是退火(Annealing),物体最后会处于晶态，能量最低。我们这里的温度和跳出概率挂钩，代表系统逐渐趋于稳定，逐渐收敛。
 
-在算法实现中，温度变化和步长有关系，有线性和指数等下降方式。
+在算法实现中，温度变化和步长有关系，有线性和指数等下降方式。需要的参数还有每个状态下产生多少新的待选择状态。
+
+关于参数的选择， 相关介绍中提到可以进行sensitivity analysis, 多跑几轮，试试那种参数选择是最好的。
+
+> Sensitivity analysis is a  reasonable method for finding appropriate values for the SA parameters.  Sensitivity analysis prescribes a combination of parameters with which  the SA algorithm is run for several times. Several other combinations  are chosen and the algorithm is run several times with each of them.  A comparison of the results calculated from many runs provides guidance  about a suitable choice of the SA parameters. (**Bozorg-Haddad, O., Solgi, M., & Loáiciga, H. A. (2017). Meta-heuristic and evolutionary algorithms for engineering optimization. John Wiley & Sons.**)
+
+这里有个相关的笔记链接：https://www.math.cmu.edu/~gautam/c/2024-387/notes/10-simulated-annealing.html
 
 
 ## 3 实验环境
