@@ -35,11 +35,19 @@ $$
 
 在算法实现中，温度变化和步长有关系，有线性和指数等下降方式。需要的参数还有每个状态下产生多少新的待选择状态。
 
-关于参数的选择， 相关介绍中提到可以进行sensitivity analysis, 多跑几轮，试试那种参数选择是最好的。
+关于参数的选择， 如下相关介绍中提到可以进行sensitivity analysis, 多跑几轮，试试那种参数选择是最好的。
 
 > Sensitivity analysis is a  reasonable method for finding appropriate values for the SA parameters.  Sensitivity analysis prescribes a combination of parameters with which  the SA algorithm is run for several times. Several other combinations  are chosen and the algorithm is run several times with each of them.  A comparison of the results calculated from many runs provides guidance  about a suitable choice of the SA parameters. (**Bozorg-Haddad, O., Solgi, M., & Loáiciga, H. A. (2017). Meta-heuristic and evolutionary algorithms for engineering optimization. John Wiley & Sons.**)
 
-这里有个相关的笔记链接：https://www.math.cmu.edu/~gautam/c/2024-387/notes/10-simulated-annealing.html
+https://www.math.cmu.edu/~gautam/c/2024-387/notes/10-simulated-annealing.html
+
+注意到我们的代码宏定义了SA算法的一些基本参数，后续可以自己试试不同参数是否有更好的效果。
+
+```c++
+#define TEMP 20
+#define STEP 0.2
+#define COUNT 10000
+```
 
 
 ## 3 实验环境
@@ -66,6 +74,41 @@ $$
 ### 5.1 playfairDecipher 实现
 
 <!-- TODO: 描述解密函数的设计思路与关键代码 -->
+
+按照课本的意思，我们是有一个$5\times5 $大小的秘钥矩阵(j暂且被认为和i是同一个字母，j不再出现)。为了索引，我写了一个简单的把二维坐标映射到一维索引的辅助函数.
+
+注意到我们如果需要进行key square的逆映射，知道字母的二维坐标很重要，方便知道对应二元字母组。所以还需要一个辅助函数把索引转化为坐标。
+
+同时因为这些信息最开始没有给出，我们要遍历key字符数组来得到这些信息，存起来。
+
+```c
+int indexKeySquare(int row, int col) {
+    assert(row <= 4 && row >= 0 && col <= 4 && col >= 0);//防御性编程
+    return row * WIDTH + col * WIDTH;
+}
+```
+
+这和`scoreTextQgram.c`当中的把四元组坐标映射到一维索引是一样的。
+
+```c
+score += qgram[17576*temp[0] + 676*temp[1] + 26*temp[2] + temp[3]];
+```
+
+设len为密文长度，按照`playfair`的实现，加密得到的密文由于明文分组的时候会填充X长度必然为偶数，我们需要从头开始，把下标为$[i, i+1(0\le i\le len-2 \and i \%2 == 0)]$的两个字母视为一个单元进行解密（值得注意的是这里明确要求在明文和密文中都不存在字母j）。每个二元字母组会映射到新的二元字母组。我们得到长度仍然为len的初步解密文本`PrePlaintext`。由于明文当中相邻重复字母或者长度要求也会填充字母X, 我们需要再次进行处理，以便得到最终的明文。
+
+这里X有两种可能，一个是填充位，一个是明文中含有的。假设初步解密文本`PrePlaintext`中含有n个`由X经过key矩阵变化来的字母`, 我们则需要依次验证这n个字母是否需要去掉的可能性，产生的潜在明文都需要对其正确性进行验证（注意，这并不是SA的新状态，SA当中的状态变化也就是新solution在这里定义为发现新的key），这个复杂度是指数的。对一个秘钥的结果验证都需要`O(2^n)`的时间复杂度， 难以接受。 于是我暂且假设原始明文不会出现X字母。
+
+下面是我的流程图，更加好理解一点，初步解密文本`PrePlaintext`也就是次明文`PostPlaintext`
+
+![](./assets/playfair-2026-03-12-1716.svg)
+
+图中所提到的`key square加/解密`很大程度上就是一个对应法则，看二元组的字母的三种存在方式决定如何选择对应的二元组。这是Playfair加密算法的原理。
+
+注意到`verify.py          验证解密明文，确保明文中包含分割重复字符添加的 'X'`
+
+所以实际上在这个程序中我们得到PrePlaintext即可。不需要去除X字母。
+
+但是由于i和j被视作了同一个字母，我们还需要考虑这个可能性。
 
 ### 5.2 playfairCrack 实现
 
