@@ -15,6 +15,7 @@ double scoreTextQgram(char *text,int len){
         temp[3]=text[i+3]-'A';
         // we have to index into the correct part of the array
         score += qgram[17576*temp[0] + 676*temp[1] + 26*temp[2] + temp[3]];
+        //实际上就是把四元组一一映射成了四位26进制数，再把这个数转化为10进制数作为一维数组索引
     }
     return score;
 }
