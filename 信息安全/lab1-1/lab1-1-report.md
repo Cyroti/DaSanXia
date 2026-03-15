@@ -54,7 +54,7 @@ $$
 
 - 操作系统：Ubuntu 24.04.4 LTS (Noble Numbat) x86_64 (Kernel: Linux 6.14.0-061400-generic, gcc --version: 14.2.0)
 - 编程语言：C
-- 编译命令：`gcc -O3 -lm playfaircrack.c scoreText.c -o your_name`
+- 编译命令：`gcc -O3 -lm playfaircrack.c scoreText.c -o your_name`(实际上-lm选项位置错了，应该在playfaircrack.c之后)
 
 ## 4 实验内容
 
@@ -161,7 +161,7 @@ result[i + 1] = key[indexKeySquare(rightRow, rightCol)];
 
 ### 5.2 playfairCrack 实现
 
-关于模拟退火，我参考了`lab1-1实验指导书`以及一本有关元启发式算法当中的一些讲解，深入理解了退火过程的物理模拟性和概率上的Metropolis法则的应用。
+关于模拟退火，我参考了`lab1-1实验指导书`以及一本有关元启发式算法的书(Meta‐Heuristic and Evolutionary Algorithms for Engineering Optimization)当中的一些讲解，深入理解了退火过程的物理模拟性和概率上的Metropolis法则的应用。
 
 书中给出了如图的伪代码说明，我感觉是比较清晰的。
 
@@ -218,13 +218,13 @@ result[i + 1] = key[indexKeySquare(rightRow, rightCol)];
 
 > 使用暴力穷举 / 双字母词频分析法破译 Playfair 密码，不使用模拟退火。
 
-### 7.0 手写思路（原文恢复）
+### 7.0 预思考
 
 我们可以先通过互联网得到二元组的出现频率数组（也取对数），视作概率。
 
 比如网站https://norvig.com/mayzner.html 提到了2元字母对的频率。
 
-不过为了简便，可以使用本地提供的语料来直接生成自己的频率。 这里我选择的是网站，因为语料库基本都要付费购买，如果是随便使用几个英语文本的话又不太够。
+不过为了简便，可以使用本地提供的语料来直接生成自己的频率。 这里我设想选择的是网站，因为语料库基本都要付费购买，如果是随便使用几个英语文本的话又不太够。
 
 爬取html代码（网站没有方便的下载统计的方式）
 
