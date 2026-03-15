@@ -14,9 +14,9 @@
 char *playfairDecipher(char *key, char *in,char *out, int len);
 float playfairCrack(char *text,int len, char* maxKey);
 static char *shuffleKey(char *in);
-int indexKeySquare(int row, int col);
-int rowFromIndex(int index);
-int colFromIndex(int index);
+inline int indexKeySquare(int row, int col);
+inline int rowFromIndex(int index);
+inline int colFromIndex(int index);
 
 static int letterToKeyIndex(char letter){
     assert(letter >= 'A' && letter <= 'Z' && letter != 'J');
@@ -155,7 +155,7 @@ float playfairCrack(char *text,int len, char* bestKey){
                 parentScore = childScore;
             } else {
                 acceptanceThreshold = exp(deltaFitness / temperature);
-                randomValue = (double) rand() / ((double) RAND_MAX + 1.0);
+                randomValue = (double) rand() / ((double) RAND_MAX + 1.0);//得到0，1之间的随机数
                 if (randomValue < acceptanceThreshold) {
                     strcpy(parentKey, childKey);
                     parentScore = childScore;
@@ -199,7 +199,7 @@ char *playfairDecipher(char *key, char *text, char *result, int len){
     }
 
     for (index = 0; index < 25; index++) {
-        int letterIndex = letterToKeyIndex(key[index]);
+        int letterIndex = letterToKeyIndex(key[index]);//letterIndex可以看成字母本身
         rowPos[letterIndex] = rowFromIndex(index);
         colPos[letterIndex] = colFromIndex(index);
     }
@@ -261,17 +261,17 @@ static char *shuffleKey(char *in){
  * 如果不是方阵，mXn大小，那么就是i*n + j*m, 类比到坐标的索引方式也是一种思考。
  */
 
-int indexKeySquare(int row, int col) {
+inline int indexKeySquare(int row, int col) {
     assert(row <= 4 && row >= 0 && col <= 4 && col >= 0);//防御性编程
     return row * WIDTH + col;
 }
 
-int rowFromIndex(int index) {
+inline int rowFromIndex(int index) {
     assert(index <= 24 && index >= 0);
     return index / WIDTH;
 }
 
-int colFromIndex(int index) {
+inline int colFromIndex(int index) {
     assert(index <= 24 && index >= 0);
     return index % WIDTH;
 }

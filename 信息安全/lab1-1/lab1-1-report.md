@@ -52,7 +52,7 @@ https://www.math.cmu.edu/~gautam/c/2024-387/notes/10-simulated-annealing.html
 
 ## 3 实验环境
 
-- 操作系统：<!-- TODO: 填写你的操作系统 -->
+- 操作系统：Ubuntu 24.04.4 LTS (Noble Numbat) x86_64 (Kernel: Linux 6.14.0-061400-generic, gcc --version: 14.2.0)
 - 编程语言：C
 - 编译命令：`gcc -O3 -lm playfaircrack.c scoreText.c -o your_name`
 
@@ -69,30 +69,9 @@ https://www.math.cmu.edu/~gautam/c/2024-387/notes/10-simulated-annealing.html
 
 > 结合代码说明算法设计思想与实现步骤。
 
-<!-- TODO: 说明你对 playfairDecipher 的实现思路 -->
-
 ### 5.1 playfairDecipher 实现
 
-<!-- TODO: 描述解密函数的设计思路与关键代码 -->
-
-按照课本的意思，我们是有一个$5\times5 $大小的秘钥矩阵(j暂且被认为和i是同一个字母，j不再出现)。为了索引，我写了一个简单的把二维坐标映射到一维索引的辅助函数.
-
-注意到我们如果需要进行key square的逆映射，知道字母的二维坐标很重要，方便知道对应二元字母组。所以还需要一个辅助函数把索引转化为坐标。
-
-同时因为这些信息最开始没有给出，我们要遍历key字符数组来得到这些信息，存起来。
-
-```c
-int indexKeySquare(int row, int col) {
-    assert(row <= 4 && row >= 0 && col <= 4 && col >= 0);//防御性编程
-    return row * WIDTH + col * WIDTH;
-}
-```
-
-这和`scoreTextQgram.c`当中的把四元组坐标映射到一维索引是一样的。
-
-```c
-score += qgram[17576*temp[0] + 676*temp[1] + 26*temp[2] + temp[3]];
-```
+#### 5.1.1 设计思路
 
 设len为密文长度，按照`playfair`的实现，加密得到的密文由于明文分组的时候会填充X长度必然为偶数，我们需要从头开始，把下标为$[i, i+1(0\le i\le len-2 \and i \%2 == 0)]$的两个字母视为一个单元进行解密（值得注意的是这里明确要求在明文和密文中都不存在字母j）。每个二元字母组会映射到新的二元字母组。我们得到长度仍然为len的初步解密文本`PrePlaintext`。由于明文当中相邻重复字母或者长度要求也会填充字母X, 我们需要再次进行处理，以便得到最终的明文。
 
@@ -108,29 +87,197 @@ score += qgram[17576*temp[0] + 676*temp[1] + 26*temp[2] + temp[3]];
 
 所以实际上在这个程序中我们得到PrePlaintext即可。不需要去除X字母。
 
-但是由于i和j被视作了同一个字母，我们还需要考虑这个可能性。
+但是由于i和j被视作了同一个字母，我们需要对每个i进行枚举看看是不是j吗， 答案是不需要， 因为初始代码中有注释：*NEITHER THE CIPHER OR THE KEY SHOULD HAVE THE LETTER 'J' IN IT. IT WILL CRASH IF YOU DO NOT DO THESE THINGS. THIS IS A PROOF OF CONCEPT ONLY.* 也就是说我们相当于认为j不存在了，这进一步简化了我们的操作难度。
+
+总体而言，我们只需要根据`key square`， 算好座标对应关系， 然后根据算法加密的一一映射关系，逆推出对应的次明文二元字母对， 很快能得到次明文， 我们所需要的就是次明文。
+
+### 5.1.2 具体实现
+
+按照课本的意思，我们是有一个$5\times5 $大小的秘钥矩阵(j暂且被认为和i是同一个字母，j不再出现)。为了索引，我写了一个简单的把二维坐标映射到一维索引的辅助函数.
+
+注意到我们如果需要进行key square的逆映射，知道字母的二维坐标很重要，方便知道对应二元字母组。所以还需要2个辅助函数把索引转化为横坐标和纵坐标。
+
+```c
+inline int indexKeySquare(int row, int col) {
+    assert(row <= 4 && row >= 0 && col <= 4 && col >= 0);//防御性编程
+    return row * WIDTH + col;
+}
+
+inline int rowFromIndex(int index) {
+    assert(index <= 24 && index >= 0);
+    return index / WIDTH;
+}
+
+inline int colFromIndex(int index) {
+    assert(index <= 24 && index >= 0);
+    return index % WIDTH;
+}
+```
+
+同时因为这些信息最开始没有给出，我们要遍历key字符数组来得到这些信息，存起来。这和`scoreTextQgram.c`当中的把四元组坐标映射到一维索引是一样的。
+
+```c
+score += qgram[17576*temp[0] + 676*temp[1] + 26*temp[2] + temp[3]];
+```
+
+首先认为j不存在，将每个字母映射为从0到24的数字，然后用两个数组记录他们在矩阵中的座标。
+
+```c
+static int letterToKeyIndex(char letter){
+    assert(letter >= 'A' && letter <= 'Z' && letter != 'J');
+    if (letter > 'J') {
+        return letter - 'A' - 1;//看成j不存在，所以j后面的字母的序号前移1位
+    }
+    return letter - 'A';
+}
+for (index = 0; index < 25; index++) {
+    int letterIndex = letterToKeyIndex(key[index]);//letterIndex可以看成字母本身
+    rowPos[letterIndex] = rowFromIndex(index);
+    colPos[letterIndex] = colFromIndex(index);
+}
+```
+
+之后通过分类讨论三种情况来得到对应的次明文中的两个字母是多少，存到result中去，这里的left, right是指在文本中的左右邻接的二元组的相对顺序：
+
+```c
+if (leftRow == rightRow) {
+    leftCol = (leftCol + WIDTH - 1) % WIDTH;
+    rightCol = (rightCol + WIDTH - 1) % WIDTH;
+} else if (leftCol == rightCol) {
+    leftRow = (leftRow + WIDTH - 1) % WIDTH;
+    rightRow = (rightRow + WIDTH - 1) % WIDTH;
+} else {
+    int tempCol = leftCol;
+    leftCol = rightCol;
+    rightCol = tempCol;
+}
+result[i] = key[indexKeySquare(leftRow, leftCol)];
+result[i + 1] = key[indexKeySquare(rightRow, rightCol)];
+```
+
+循环头是这么写的:*for* (i *=* *0*; i *<* *len*; i *+=* *2*)
+
+最后将result的末尾添加空字符，返回即可。
 
 ### 5.2 playfairCrack 实现
 
-<!-- TODO: 描述模拟退火函数的设计思路与关键代码 -->
+关于模拟退火，我参考了`lab1-1实验指导书`以及一本有关元启发式算法当中的一些讲解，深入理解了退火过程的物理模拟性和概率上的Metropolis法则的应用。
+
+书中给出了如图的伪代码说明，我感觉是比较清晰的。
+
+![image-20260315094533613](./assets/image-20260315094533613.png)
+
+在这里我们的fitness function实际上就是对四元组出现概率取对数之后求和的结果，这就是`scoreText.c`的逻辑， 实际上`qgr.h`存的就是概率取对数后的负数值。（对概率取对数在深度学习算法中也很常见）
+
+我们的目的是使得fitness function值最大，也就是比较score最大即可， 别看是负数，因为log本身是单调递增的，所以我们还是需要score最大才能让概率最大。
+
+算法的**关键**部分就是如下的循环，这里我们的温度变化直接用了线性递减策略，验证下来是比较好的。
+
+```c
+   for (temperature = TEMP; temperature > 0.0; temperature -= STEP) {//线性降温
+       for (count = 0; count < COUNT; count++) {
+           double deltaFitness;
+           double acceptanceThreshold;
+           double randomValue;
+           modifyKey(childKey, parentKey);
+           playfairDecipher(childKey, text, childPlain, len);
+           childScore = scoreTextQgram(childPlain, len);
+           deltaFitness = childScore - parentScore;
+           if (deltaFitness > 0.0) {
+               strcpy(parentKey, childKey);
+               parentScore = childScore;
+           } else {
+               acceptanceThreshold = exp(deltaFitness / temperature);
+               randomValue = (double) rand() / ((double) RAND_MAX + 1.0);//得到0，1之间的随机数
+               if (randomValue < acceptanceThreshold) {
+                   strcpy(parentKey, childKey);
+                   parentScore = childScore;
+               }
+           }
+           if (parentScore > bestScore) {
+               bestScore = parentScore;
+               strcpy(bestLocalKey, parentKey);
+           }
+       }
+   }
+```
+
+实践当中也有别的降温策略，比如指数降温，慢降温等等。
 
 ## 6 实验结果
 
 > 通过复制或截图的方式记录实验执行的结果。
 
-<!-- TODO: 粘贴程序输出结果，或插入截图 -->
+![image-20260315094128319](./assets/image-20260315094128319.png)
+
+我的SA算法在第一个iteration中就直接给出了正确的次明文， 通过`REPL`python编程确认了这是对的。
+
+注意到SA算法在第一个iteration之后一直在死循环，找不到更好的答案了，所以我直接把第一轮的最优解验证了，发现第一轮就能找到全局最优解。
 
 ## 7 扩展实验（选做）
 
 > 使用暴力穷举 / 双字母词频分析法破译 Playfair 密码，不使用模拟退火。
 
-<!-- TODO: 如完成扩展实验，在此描述思路、实现与结果 -->
+我们可以先通过互联网得到二元组的出现频率数组（也取对数），视作概率。
+
+比如网站https://norvig.com/mayzner.html 提到了2元字母对的频率。
+
+不过为了简便，可以使用本地提供的语料来直接生成自己的频率。 这里我选择的是网站，因为语料库基本都要付费购买，如果是随便使用几个英语文本的话又不太够。
+
+爬取html代码（网站没有方便的下载统计的方式）
+
+保存为`2.html` 用python脚本处理一下即可。
+
+有关明文的双字母出现频率我们已经知道了。 接下来是统计密文双字母频率，实验指导中说需要大量的密文，这个原因是很显然的，只有密文充分多，我们才能得出有意义的频率（趋近语料库的频率）
+
+那么我们拿什么来作为明文呢？
+
+我突然想到，因为我们的playfair算法有两个很难处理的点，一个是I/J看作一个字母， 另一个是X填充的问题。如果我们贸然使用网上下载的正常明文的双字母词频作为标准的话，我们是无法顺利逆解密的。
+
+我们对标的应当是次明文，也就是被X填充后的明文。
+
+所以为了**简化实验**， 我使用一些英语片段，并且用他们的填充后的次明文作为统计对象。
+
+然后从这些片段中选一个把填充后的次明文加密，之后作为密文，来进行解密。
+
+这样就解决了X的问题，至于I/J的问题， 我决定在得到次明文的同时将所有J转成I. 一律认为所有的J是I.
+
+为了思路清晰，见如下图：
+
+![image-20260315105115124](./assets/image-20260315105115124.png)
+
+我们这里把次明文作为明文，目的是从密文解密到次明文， 所以统计频率也是统计次明文的频率。
+
+下面是解密的C程序
+
+```c
+```
+
+这是运行截图：
+
+
 
 ## 8 实验总结
 
 > 选填。可以记录调试过程中出现的问题及解决方法、对实验结果的分析、对实验的改进意见等。
 
-<!-- TODO: 填写实验总结 -->
+### 8.1 问题和解决方法
+
+首先说说碰到的问题，一个是我在linux平台上发现`lab1-1实验指导书`给出的编译指令中选项顺序是错误的：
+
+![image-20260315093243295](./assets/image-20260315093243295.png)
+
+根据gcc官方说明(https://gcc.gnu.org/onlinedocs/gcc/Link-Options.html)，-lm链接参数需要放到用了库m(也就是math库)的源文件后面，所以我编译出了如下错误，如果把-lm放到用了math库的.c文件后面就可以了。
+
+![image-20260315093604255](./assets/image-20260315093604255.png)
+
+下面是我的编译运行截图：
+
+![image-20260315093711082](./assets/image-20260315093711082.png)
+
+因为是`playfaircrack.c`用了math库(libm.a)，所以把-lm放在它后面即可，如下也是对的：
+
+![image-20260315093828567](./assets/image-20260315093828567.png)
 
 ---
 
@@ -140,12 +287,12 @@ score += qgram[17576*temp[0] + 676*temp[1] + 26*temp[2] + temp[3]];
 
 | # | 检查项 | 完成情况 |
 |---|--------|----------|
-| 1 | `playfairDecipher` 函数已补全 | |
-| 2 | `playfairCrack` 函数已补全 | |
-| 3 | 源代码可编译运行（`gcc -O3 -lm playfaircrack.c scoreText.c -o your_name`） | |
-| 4 | 程序运行结果正确（输出可辨认的英文明文） | |
-| 5 | 使用 `verify.py` 验证通过 | |
-| 6 | 实验思路阐述清晰（第 5 节） | |
-| 7 | 实验结果已记录（第 6 节） | |
-| 8 | 扩展实验（选做，第 7 节） | |
+| 1 | `playfairDecipher` 函数已补全 | done |
+| 2 | `playfairCrack` 函数已补全 | done |
+| 3 | 源代码可编译运行（`gcc -O3 -lm playfaircrack.c scoreText.c -o your_name`） | done(前面已经指出，实际上-lm选项位置错了，应该在playfaircrack.c之后) |
+| 4 | 程序运行结果正确（输出可辨认的英文明文） | done |
+| 5 | 使用 `verify.py` 验证通过 | done |
+| 6 | 实验思路阐述清晰（第 5 节） | done |
+| 7 | 实验结果已记录（第 6 节） | done |
+| 8 | 扩展实验（选做，第 7 节） | done |
 | 9 | 提交文件结构正确（见实验指导书） | |
