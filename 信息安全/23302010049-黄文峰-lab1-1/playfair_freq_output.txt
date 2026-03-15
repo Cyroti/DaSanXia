@@ -1,0 +1,53 @@
+[Dataset]
+  raw bytes            : 6977
+  normalized letters   : 5762
+  training letters     : 4033 -> secondary=4094
+  attack letters       : 1729 -> secondary=1752
+  base keyword key     : PLAYFIRBCDEGHKMNOQSTUVWXZ
+  secret key           : GVLORMZFTDEUPNIHWAQBKXYSC
+
+Top-12 bigram rank mapping (plain <=rank=> cipher):
+   1. IN <=> KH
+   2. TE <=> IG
+   3. EX <=> EI
+   4. ST <=> IM
+   5. TI <=> MQ
+   6. RE <=> TQ
+   7. TH <=> DN
+   8. LE <=> MN
+   9. ON <=> ON
+  10. ER <=> OC
+  11. IS <=> QN
+  12. ES <=> QP
+
+[Single Attack Demo]
+  ciphertext length    : 1752
+  tested keys          : 115200
+  recovered key        : PNIEUAQBHWYSCKXLORGVFTDMZ
+  key string equal     : NO (Playfair has equivalent keys)
+  plaintext accuracy   : 100.00%
+  score                : -5438.692148
+  recovered head (120) : ALINKEYTXTWITHTHESEFILESUNDERVERSIONCONTROLCOLLABORATIONANDREVIEWBECOMEMUCHEASIERANDEXPERIMENTHISTORYREMAINSTRANSPARENTA
+  truth head (120)     : ALINKEYTXTWITHTHESEFILESUNDERVERSIONCONTROLCOLLABORATIONANDREVIEWBECOMEMUCHEASIERANDEXPERIMENTHISTORYREMAINSTRANSPARENTA
+
+[Ciphertext Length Sensitivity]
+  stopping rule: first length with plaintext accuracy >= 99.9%.
+  len= 300 => acc=100.00%
+  len= 400 => acc=100.00%
+  len= 500 => acc=100.00%
+  len= 600 => acc=100.00%
+  len= 700 => acc=100.00%
+  len= 800 => acc=100.00%
+  len= 900 => acc=100.00%
+  len=1000 => acc=100.00%
+  len=1100 => acc=100.00%
+  len=1200 => acc=100.00%
+  len=1300 => acc=100.00%
+  len=1400 => acc=100.00%
+  len=1500 => acc=100.00%
+  len=1600 => acc=100.00%
+  len=1700 => acc=100.00%
+  => Recommended minimum secondary-plaintext length: 300
+
+[Algorithm Stop Condition]
+  The brute-force loop stops only after all 115200 candidate keys are fully enumerated.
