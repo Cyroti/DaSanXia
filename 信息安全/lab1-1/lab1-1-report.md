@@ -39,9 +39,9 @@ $$
 
 > Sensitivity analysis is a  reasonable method for finding appropriate values for the SA parameters.  Sensitivity analysis prescribes a combination of parameters with which  the SA algorithm is run for several times. Several other combinations  are chosen and the algorithm is run several times with each of them.  A comparison of the results calculated from many runs provides guidance  about a suitable choice of the SA parameters. (**Bozorg-Haddad, O., Solgi, M., & Loáiciga, H. A. (2017). Meta-heuristic and evolutionary algorithms for engineering optimization. John Wiley & Sons.**)
 
-https://www.math.cmu.edu/~gautam/c/2024-387/notes/10-simulated-annealing.html
+[SA算法解决单表替换的笔记](https://www.math.cmu.edu/~gautam/c/2024-387/notes/10-simulated-annealing.html)
 
-注意到我们的代码宏定义了SA算法的一些基本参数，后续可以自己试试不同参数是否有更好的效果。
+注意到我们的代码宏定义了SA算法的一些基本参数，也可以自己试试不同参数是否有更好的效果。
 
 ```c++
 #define TEMP 20
@@ -87,7 +87,7 @@ https://www.math.cmu.edu/~gautam/c/2024-387/notes/10-simulated-annealing.html
 
 所以实际上在这个程序中我们得到PrePlaintext即可。不需要去除X字母。
 
-但是由于i和j被视作了同一个字母，我们需要对每个i进行枚举看看是不是j吗， 答案是不需要， 因为初始代码中有注释：*NEITHER THE CIPHER OR THE KEY SHOULD HAVE THE LETTER 'J' IN IT. IT WILL CRASH IF YOU DO NOT DO THESE THINGS. THIS IS A PROOF OF CONCEPT ONLY.* 也就是说我们相当于认为j不存在了，这进一步简化了我们的操作难度。
+但是由于i和j被视作了同一个字母，我们需要对每个i进行枚举看看是不是j吗， 答案是不需要， 因为初始代码中有注释：**NEITHER THE CIPHER OR THE KEY SHOULD HAVE THE LETTER 'J' IN IT. IT WILL CRASH IF YOU DO NOT DO THESE THINGS. THIS IS A PROOF OF CONCEPT ONLY.** 也就是说我们相当于认为j不存在了，这进一步简化了我们的操作难度。
 
 总体而言，我们只需要根据`key square`， 算好座标对应关系， 然后根据算法加密的一一映射关系，逆推出对应的次明文二元字母对， 很快能得到次明文， 我们所需要的就是次明文。
 
@@ -218,6 +218,8 @@ result[i + 1] = key[indexKeySquare(rightRow, rightCol)];
 
 > 使用暴力穷举 / 双字母词频分析法破译 Playfair 密码，不使用模拟退火。
 
+### 7.0 手写思路（原文恢复）
+
 我们可以先通过互联网得到二元组的出现频率数组（也取对数），视作概率。
 
 比如网站https://norvig.com/mayzner.html 提到了2元字母对的频率。
@@ -248,14 +250,98 @@ result[i + 1] = key[indexKeySquare(rightRow, rightCol)];
 
 我们这里把次明文作为明文，目的是从密文解密到次明文， 所以统计频率也是统计次明文的频率。
 
-下面是解密的C程序
+下面是具体说明，之所以称这是暴力枚举，就是枚举所有的密钥可能性，然后对每个密钥根据双字母频率进行打分， 得到最优解。
 
-```c
+
+### 7.1 代码实现与结果（追加）
+
+### 7.1.1 方法设计
+
+本部分实现文件为 `playfair_freqcrack.c`，使用**纯穷举 + 双字母词频打分**，不使用模拟退火。
+
+1. 从 `corp.txt` 读取语料，保留字母、转大写、将 `J` 统一映射为 `I`。
+2. 对训练语料构造 Playfair 次明文（重复字母插入 `X`，末尾补 `X`），统计双字母分布，得到语言模型。
+3. 对密文统计双字母分布，按频率排序，与明文双字母排序做 rank 对应，得到双字母替代表（用于分析展示）。
+4. 暴力穷举密钥家族：
+     - 以关键字密钥为基准（本实验取 `PLAYFAIR` 生成基准方阵）；
+     - 穷举 `5!` 行排列、`5!` 列排列、行翻转、列翻转、转置；
+     - 总搜索空间：`5! * 5! * 2 * 2 * 2 = 115200`。
+5. 对每个候选密钥解密密文，计算“解密文本双字母分布”在语言模型下的对数似然（越大越好），取全局最优。
+
+#### 7.1.1.1 为什么这样设计
+
+这部分采用“受约束的全枚举”，核心原因是：
+
+1. 若对 Playfair 全空间暴力，密钥数是 `25! ≈ 1.55 × 10^25`，在课程实验条件下不可计算。
+2. 若按每秒评估 `10^6` 个密钥估算，完整遍历也需要约 `4.9 × 10^11` 年，远超可接受时间。
+3. 因此需要在“仍然是暴力穷举”的前提下，引入可解释的结构约束：只枚举基准方阵的行/列排列、翻转与转置变换，得到 115200 个候选，能在本机快速完成。
+4. 该设计保持了暴力法的确定性（无随机扰动、无退火概率），便于复现实验与分析停机。
+5. 评分函数仍然是双字母词频模型，符合本题“词频分析法”要求。
+6. 程序中增加了两组并行场景（Case A / Case B）：
+    - Case A 用于展示“等价密钥”现象：密钥字符串可能不一致，但明文可 100% 恢复；
+    - Case B 用于展示“可恢复为完全相同字符串密钥”的情况。
+    这样可以更完整解释为什么只看 `key_equal` 不够，必须结合解密准确率判断破解是否成功。
+
+### 7.1.2 停机条件
+
+因为是穷举法，停机条件是**搜索空间枚举完毕**。本实现中固定为 115200 个候选密钥全部评估后停止。
+
+补充说明：该停机规则是确定性的，不依赖迭代温度、随机种子或启发式收敛判据，因而便于对比不同密文长度下的行为。
+
+### 7.1.3 密文长度与语料是否足够，也即探索问题
+
+`corp.txt` 的统计如下（命令：`wc -c corp.txt && wc -w corp.txt && tr -cd 'A-Za-z' < corp.txt | wc -c`）：
+
+- 字节数：6977
+- 词数：1031
+- 纯字母数：5762
+
+程序将其按 7:3 分为训练与攻击数据：
+
+- 训练：4033 字母，次明文长度 4094
+- 攻击：1729 字母，次明文长度 1752
+
+在本实验设定下，语料长度足够。密文长度敏感性测试（步长 100）显示：从 **300** 开始就可达到 100% 次明文恢复准确率，因此建议本配置下次明文长度至少约 **300**。
+
+### 7.1.4 编译运行与结果
+
+编译运行命令：
+
+```bash
+gcc -O3 playfair_freqcrack.c -lm -o playfair_freqcrack
+./playfair_freqcrack > playfair_freq_output.txt
 ```
 
-这是运行截图：
+关键输出摘录：
 
+```text
+[Single Attack Demo]
+    ciphertext length    : 1752
+    tested keys          : 115200
+    recovered key        : PNIEUAQBHWYSCKXLORGVFTDMZ
+    key string equal     : NO (Playfair has equivalent keys)
+    plaintext accuracy   : 100.00%
 
+[Ciphertext Length Sensitivity]
+    stopping rule: first length with plaintext accuracy >= 99.9%.
+    len= 300 => acc=100.00%
+    ...
+    => Recommended minimum secondary-plaintext length: 300
+```
+
+说明：`recovered key` 与 `secret key` 字符串不完全一致，但解密得到的次明文完全一致（100%），这是 Playfair 存在等价密钥表示导致的现象。有时候会得到等价密钥，有时候不会。
+
+截图：
+
+![image-20260315113736145](./assets/image-20260315113736145.png)
+
+可以看到第一个demo中恢复的密钥并不等于真正的密钥，但是解密是成功的，这说明特定条件下密钥的等价性。**因为我们搜索的方向是一定的，所以每次都会先搜索到这个等价实现。**如下[问答网站](https://crypto.stackexchange.com/questions/3783/how-many-keys-does-the-playfair-cipher-have)说明了，并不是25!个密钥，有些是等价的。
+
+![image-20260315115256870](./assets/image-20260315115256870.png)
+
+我补充了一下代码逻辑，确定了上面两个密钥是等价实现：
+
+![image-20260315115531130](./assets/image-20260315115531130.png)
 
 ## 8 实验总结
 
@@ -263,7 +349,7 @@ result[i + 1] = key[indexKeySquare(rightRow, rightCol)];
 
 ### 8.1 问题和解决方法
 
-首先说说碰到的问题，一个是我在linux平台上发现`lab1-1实验指导书`给出的编译指令中选项顺序是错误的：
+首先说说碰到的问题，第一个是我在linux平台上发现`lab1-1实验指导书`给出的编译指令中选项顺序是错误的：
 
 ![image-20260315093243295](./assets/image-20260315093243295.png)
 
@@ -278,6 +364,12 @@ result[i + 1] = key[indexKeySquare(rightRow, rightCol)];
 因为是`playfaircrack.c`用了math库(libm.a)，所以把-lm放在它后面即可，如下也是对的：
 
 ![image-20260315093828567](./assets/image-20260315093828567.png)
+
+第二个问题就是Playfair原来是存在等价密钥的，我一开始只是认为有25!个可能，没想到有等价密钥，所以搜索结果可能会和定义的密钥不同。https://crypto.stackexchange.com/questions/3783/how-many-keys-does-the-playfair-cipher-have 反过来说，也可以利用这个性质减小搜索时间。
+
+还有一个问题也是一开始没想清楚， 我发现解密出来的答案有连续相同的字母，但是verify通过了，我感到迷惑，但仔细想了之后，发现所谓X的填充，只有在从左到右枚举2字母元组的时候发现是相同的才会填充。
+
+而像`AVALLEY`这样的明文（这里不计空格，原来的正常写法是 a valley, 一个山谷），被分组的时候连续的两个L并不会分到同一组， 所以不会填充X, 解密的时候这两个L也不会在一组，不会引发问题。
 
 ---
 
@@ -295,4 +387,4 @@ result[i + 1] = key[indexKeySquare(rightRow, rightCol)];
 | 6 | 实验思路阐述清晰（第 5 节） | done |
 | 7 | 实验结果已记录（第 6 节） | done |
 | 8 | 扩展实验（选做，第 7 节） | done |
-| 9 | 提交文件结构正确（见实验指导书） | |
+| 9 | 提交文件结构正确（见实验指导书） | done |
