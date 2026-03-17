@@ -218,6 +218,11 @@ result[i + 1] = key[indexKeySquare(rightRow, rightCol)];
 
 ![image-20260315122144692](./assets/image-20260315122144692.png)
 
+由于我是在linux环境编译的，得到的可执行文件**无法直接在Windows平台运行**，经过实验，可以用wsl来运行，具体如下结果（在windows平台的powershell终端）：
+
+![image-20260317151144199](./assets/image-20260317151144199.png)
+
+
 ## 7 扩展实验（选做）
 
 > 使用暴力穷举 / 双字母词频分析法破译 Playfair 密码，不使用模拟退火。
