@@ -1,0 +1,17 @@
+{
+  "files" : {
+    "/demo.txt" : {
+      "path" : "/demo.txt",
+      "size" : 10,
+      "createTime" : 1774340531715,
+      "modifyTime" : 1774340735604,
+      "accessTime" : 1774340720210,
+      "blocks" : [ {
+        "blockId" : "cae1ebc2-ef1c-42ff-941c-89d9d1febe99",
+        "dataNodeId" : "dn1",
+        "dataNodeAddress" : "127.0.0.1:50061",
+        "size" : 10
+      } ]
+    }
+  }
+}
