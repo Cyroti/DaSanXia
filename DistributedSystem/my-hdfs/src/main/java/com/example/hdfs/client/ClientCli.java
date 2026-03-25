@@ -16,6 +16,7 @@ public class ClientCli {
             System.out.println("  append <fd> <text>");
             System.out.println("  read <fd>");
             System.out.println("  close <fd>");
+            System.out.println("  check <path>");
             System.out.println("  exit");
 
             while (true) {
@@ -51,7 +52,7 @@ public class ClientCli {
                             }
                             int fd = Integer.parseInt(parts[1]);
                             boolean ok = client.append(fd, parts[2].getBytes(StandardCharsets.UTF_8));
-                            System.out.println(ok ? "append ok" : "append failed");
+                            System.out.println(ok ? "append ok" : ("append failed: " + client.getLastError()));
                         }
                         case "read" -> {
                             if (parts.length < 2) {
@@ -60,7 +61,7 @@ public class ClientCli {
                             }
                             int fd = Integer.parseInt(parts[1]);
                             byte[] data = client.read(fd);
-                            System.out.println(data == null ? "read failed" : new String(data, StandardCharsets.UTF_8));
+                            System.out.println(data == null ? ("read failed: " + client.getLastError()) : new String(data, StandardCharsets.UTF_8));
                         }
                         case "close" -> {
                             if (parts.length < 2) {
@@ -68,7 +69,18 @@ public class ClientCli {
                                 continue;
                             }
                             int fd = Integer.parseInt(parts[1]);
-                            System.out.println(client.close(fd) ? "close ok" : "close failed");
+                            boolean ok = client.close(fd);
+                            System.out.println(ok ? "close ok" : ("close failed: " + client.getLastError()));
+                        }
+                        case "check" -> {
+                            if (parts.length < 2) {
+                                System.out.println("usage: check <path>");
+                                continue;
+                            }
+                            ConsistencyReport report = client.inspectFileConsistency(parts[1]);
+                            System.out.println("check " + (report.success() ? "ok" : "failed")
+                                    + ", severity=" + report.severity() + ", " + report.summary());
+                            report.details().forEach(System.out::println);
                         }
                         default -> System.out.println("Unknown command");
                     }

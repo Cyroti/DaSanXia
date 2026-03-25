@@ -1,0 +1,34 @@
+{
+  "files" : {
+    "/pipeline-demo2.txt" : {
+      "path" : "/pipeline-demo2.txt",
+      "size" : 18,
+      "createTime" : 1774355756330,
+      "modifyTime" : 1774355759973,
+      "accessTime" : 1774355759631,
+      "blocks" : [ {
+        "blockId" : "3965bf67-79fd-4cb7-989d-1fa7c864e530",
+        "size" : 18,
+        "replicas" : [ {
+          "dataNodeId" : "dn1",
+          "dataNodeAddress" : "127.0.0.1:55061",
+          "size" : 18,
+          "checksum" : "25eec356",
+          "updateTime" : 1774355758679
+        }, {
+          "dataNodeId" : "dn2",
+          "dataNodeAddress" : "127.0.0.1:55062",
+          "size" : 18,
+          "checksum" : "25eec356",
+          "updateTime" : 1774355758697
+        }, {
+          "dataNodeId" : "dn3",
+          "dataNodeAddress" : "127.0.0.1:55063",
+          "size" : 0,
+          "checksum" : "",
+          "updateTime" : 1774355756693
+        } ]
+      } ]
+    }
+  }
+}

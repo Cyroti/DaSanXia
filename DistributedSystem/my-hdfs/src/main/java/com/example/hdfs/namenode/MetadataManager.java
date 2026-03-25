@@ -5,8 +5,10 @@ import com.example.hdfs.common.DataNodeEndpoint;
 import com.example.hdfs.rpc.BlockInfo;
 import com.example.hdfs.rpc.FileMetadata;
 import com.example.hdfs.rpc.OpenMode;
+import com.example.hdfs.rpc.ReplicaInfo;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,6 +26,9 @@ public class MetadataManager {
     public MetadataManager(FsImageStore store, List<DataNodeEndpoint> dataNodes) {
         if (dataNodes == null || dataNodes.isEmpty()) {
             throw new IllegalArgumentException("At least one DataNode endpoint is required");
+        }
+        if (dataNodes.size() < Constants.REQUIRED_REPLICA_ACKS) {
+            throw new IllegalArgumentException("At least " + Constants.REQUIRED_REPLICA_ACKS + " DataNodes are required");
         }
         this.store = store;
         this.fsImage = store.load();
@@ -51,7 +56,7 @@ public class MetadataManager {
                 return OpenResult.failed("file is already opened for writing");
             }
             writeOpen.put(path, true);
-        } else if (mode == OpenMode.READ) {
+        } else {
             readOpenCount.put(path, readOpenCount.getOrDefault(path, 0) + 1);
             file.setAccessTime(now);
             store.save(fsImage);
@@ -92,28 +97,35 @@ public class MetadataManager {
         if (!Boolean.TRUE.equals(writeOpen.get(path))) {
             return null;
         }
-        DataNodeEndpoint ep = pickDataNode();
+
+        List<DataNodeEndpoint> replicaEndpoints = pickReplicaDataNodes();
         BlockRecord block = new BlockRecord();
         block.setBlockId(UUID.randomUUID().toString());
-        block.setDataNodeId(ep.id());
-        block.setDataNodeAddress(ep.address());
         block.setSize(0);
 
+        long now = System.currentTimeMillis();
+        for (DataNodeEndpoint ep : replicaEndpoints) {
+            ReplicaRecord r = new ReplicaRecord();
+            r.setDataNodeId(ep.id());
+            r.setDataNodeAddress(ep.address());
+            r.setSize(0);
+            r.setChecksum("");
+            r.setUpdateTime(now);
+            block.getReplicas().add(r);
+        }
+
         file.getBlocks().add(block);
-        file.setModifyTime(System.currentTimeMillis());
+        file.setModifyTime(now);
         store.save(fsImage);
         return block;
     }
 
-    public synchronized boolean updateBlockSize(String path, String blockId, String dataNodeId, String dataNodeAddress, int blockSize) {
+    public synchronized boolean updateBlockReplica(String path, String blockId, ReplicaInfo replicaInfo) {
         FileRecord file = fsImage.getFiles().get(path);
         if (file == null) {
             return false;
         }
-        if (!Boolean.TRUE.equals(writeOpen.get(path))) {
-            return false;
-        }
-        if (blockSize < 0 || blockSize > Constants.BLOCK_SIZE) {
+        if (replicaInfo.getSize() < 0 || replicaInfo.getSize() > Constants.BLOCK_SIZE) {
             return false;
         }
 
@@ -124,19 +136,22 @@ public class MetadataManager {
                 break;
             }
         }
-
         if (target == null) {
-            target = new BlockRecord();
-            target.setBlockId(blockId);
-            target.setDataNodeId(dataNodeId);
-            target.setDataNodeAddress(dataNodeAddress);
-            target.setSize(blockSize);
-            file.getBlocks().add(target);
-        } else {
-            target.setDataNodeId(dataNodeId);
-            target.setDataNodeAddress(dataNodeAddress);
-            target.setSize(blockSize);
+            return false;
         }
+
+        ReplicaRecord rr = findReplica(target, replicaInfo.getDatanodeId());
+        if (rr == null) {
+            rr = new ReplicaRecord();
+            rr.setDataNodeId(replicaInfo.getDatanodeId());
+            rr.setDataNodeAddress(replicaInfo.getDatanodeAddress());
+            target.getReplicas().add(rr);
+        }
+        rr.setSize(replicaInfo.getSize());
+        rr.setChecksum(replicaInfo.getChecksum());
+        rr.setUpdateTime(replicaInfo.getUpdateTime());
+
+        target.setSize(resolveCanonicalReplicaSize(target));
 
         long total = file.getBlocks().stream().map(BlockRecord::getSize).reduce(0, Integer::sum);
         file.setSize(total);
@@ -147,9 +162,51 @@ public class MetadataManager {
         return true;
     }
 
-    private DataNodeEndpoint pickDataNode() {
-        int idx = Math.floorMod(dataNodeCursor.getAndIncrement(), dataNodes.size());
-        return dataNodes.get(idx);
+    private ReplicaRecord findReplica(BlockRecord block, String dataNodeId) {
+        for (ReplicaRecord r : block.getReplicas()) {
+            if (r.getDataNodeId().equals(dataNodeId)) {
+                return r;
+            }
+        }
+        return null;
+    }
+
+    private int resolveCanonicalReplicaSize(BlockRecord block) {
+        if (block.getReplicas().isEmpty()) {
+            return 0;
+        }
+
+        Map<String, Integer> votes = new HashMap<>();
+        for (ReplicaRecord r : block.getReplicas()) {
+            String key = r.getSize() + "#" + (r.getChecksum() == null ? "" : r.getChecksum());
+            votes.put(key, votes.getOrDefault(key, 0) + 1);
+        }
+
+        String winner = votes.entrySet().stream()
+                .max(Comparator.comparingInt(Map.Entry<String, Integer>::getValue)
+                        .thenComparing(e -> parseSizeFromVoteKey(e.getKey())))
+                .map(Map.Entry::getKey)
+                .orElse("0#");
+
+        return parseSizeFromVoteKey(winner);
+    }
+
+    private int parseSizeFromVoteKey(String key) {
+        int idx = key.indexOf('#');
+        if (idx < 0) {
+            return 0;
+        }
+        return Integer.parseInt(key.substring(0, idx));
+    }
+
+    private List<DataNodeEndpoint> pickReplicaDataNodes() {
+        int replicaCount = Math.min(Constants.REPLICATION_FACTOR, dataNodes.size());
+        int start = Math.floorMod(dataNodeCursor.getAndIncrement(), dataNodes.size());
+        List<DataNodeEndpoint> picked = new ArrayList<>(replicaCount);
+        for (int i = 0; i < replicaCount; i++) {
+            picked.add(dataNodes.get((start + i) % dataNodes.size()));
+        }
+        return picked;
     }
 
     private FileRecord newFile(String path, long now) {
@@ -174,12 +231,21 @@ public class MetadataManager {
                 .setAccessTime(fr.getAccessTime());
 
         for (BlockRecord b : blocks) {
-            builder.addBlocks(BlockInfo.newBuilder()
+            BlockInfo.Builder blockBuilder = BlockInfo.newBuilder()
                     .setBlockId(b.getBlockId())
-                    .setDatanodeId(b.getDataNodeId())
-                    .setDatanodeAddress(b.getDataNodeAddress())
-                    .setSize(b.getSize())
-                    .build());
+                    .setSize(b.getSize());
+
+            for (ReplicaRecord r : b.getReplicas()) {
+                blockBuilder.addReplicas(ReplicaInfo.newBuilder()
+                        .setDatanodeId(r.getDataNodeId())
+                        .setDatanodeAddress(r.getDataNodeAddress())
+                        .setSize(r.getSize())
+                        .setChecksum(r.getChecksum() == null ? "" : r.getChecksum())
+                        .setUpdateTime(r.getUpdateTime())
+                        .build());
+            }
+
+            builder.addBlocks(blockBuilder.build());
         }
         return builder.build();
     }

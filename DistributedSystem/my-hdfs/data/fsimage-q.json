@@ -1,0 +1,56 @@
+{
+  "files" : {
+    "/pipeline-demo.txt" : {
+      "path" : "/pipeline-demo.txt",
+      "size" : 0,
+      "createTime" : 1774355577163,
+      "modifyTime" : 1774355580804,
+      "accessTime" : 1774355580473,
+      "blocks" : [ {
+        "blockId" : "31570da7-b6dc-43fc-97b5-966ab0fb79e8",
+        "size" : 0,
+        "replicas" : [ {
+          "dataNodeId" : "dn1",
+          "dataNodeAddress" : "127.0.0.1:54061",
+          "size" : 0,
+          "checksum" : "",
+          "updateTime" : 1774355577816
+        }, {
+          "dataNodeId" : "dn2",
+          "dataNodeAddress" : "127.0.0.1:54062",
+          "size" : 0,
+          "checksum" : "",
+          "updateTime" : 1774355577816
+        }, {
+          "dataNodeId" : "dn3",
+          "dataNodeAddress" : "127.0.0.1:54063",
+          "size" : 0,
+          "checksum" : "",
+          "updateTime" : 1774355577816
+        } ]
+      }, {
+        "blockId" : "f1b9ba0b-1a89-400f-b52b-f0c13b3140e9",
+        "size" : 0,
+        "replicas" : [ {
+          "dataNodeId" : "dn2",
+          "dataNodeAddress" : "127.0.0.1:54062",
+          "size" : 0,
+          "checksum" : "",
+          "updateTime" : 1774355578458
+        }, {
+          "dataNodeId" : "dn3",
+          "dataNodeAddress" : "127.0.0.1:54063",
+          "size" : 0,
+          "checksum" : "",
+          "updateTime" : 1774355578458
+        }, {
+          "dataNodeId" : "dn1",
+          "dataNodeAddress" : "127.0.0.1:54061",
+          "size" : 0,
+          "checksum" : "",
+          "updateTime" : 1774355578458
+        } ]
+      } ]
+    }
+  }
+}

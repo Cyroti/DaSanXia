@@ -1,10 +1,12 @@
 package com.example.hdfs.namenode;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class BlockRecord {
     private String blockId;
-    private String dataNodeId;
-    private String dataNodeAddress;
     private int size;
+    private List<ReplicaRecord> replicas = new ArrayList<>();
 
     public String getBlockId() {
         return blockId;
@@ -14,20 +16,12 @@ public class BlockRecord {
         this.blockId = blockId;
     }
 
-    public String getDataNodeId() {
-        return dataNodeId;
+    public List<ReplicaRecord> getReplicas() {
+        return replicas;
     }
 
-    public void setDataNodeId(String dataNodeId) {
-        this.dataNodeId = dataNodeId;
-    }
-
-    public String getDataNodeAddress() {
-        return dataNodeAddress;
-    }
-
-    public void setDataNodeAddress(String dataNodeAddress) {
-        this.dataNodeAddress = dataNodeAddress;
+    public void setReplicas(List<ReplicaRecord> replicas) {
+        this.replicas = replicas;
     }
 
     public int getSize() {

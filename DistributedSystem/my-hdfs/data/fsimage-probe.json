@@ -1,0 +1,64 @@
+{
+  "files" : {
+    "/probe.txt" : {
+      "path" : "/probe.txt",
+      "size" : 0,
+      "createTime" : 1774355139842,
+      "modifyTime" : 1774355142543,
+      "accessTime" : 1774355142093,
+      "blocks" : [ {
+        "blockId" : "4181eb91-929d-47a0-854f-80624052f63a",
+        "size" : 0,
+        "replicas" : [ {
+          "dataNodeId" : "dn1",
+          "dataNodeAddress" : "127.0.0.1:53061",
+          "size" : 0,
+          "checksum" : "",
+          "updateTime" : 1774355140197
+        }, {
+          "dataNodeId" : "dn2",
+          "dataNodeAddress" : "127.0.0.1:53062",
+          "size" : 0,
+          "checksum" : "",
+          "updateTime" : 1774355140197
+        }, {
+          "dataNodeId" : "dn3",
+          "dataNodeAddress" : "127.0.0.1:53063",
+          "size" : 0,
+          "checksum" : "",
+          "updateTime" : 1774355140197
+        } ]
+      } ]
+    },
+    "/probe2.txt" : {
+      "path" : "/probe2.txt",
+      "size" : 0,
+      "createTime" : 1774355227336,
+      "modifyTime" : 1774355228063,
+      "accessTime" : 1774355227336,
+      "blocks" : [ {
+        "blockId" : "652a81ec-6943-4b08-950a-1bcb65126530",
+        "size" : 0,
+        "replicas" : [ {
+          "dataNodeId" : "dn2",
+          "dataNodeAddress" : "127.0.0.1:53062",
+          "size" : 0,
+          "checksum" : "",
+          "updateTime" : 1774355227467
+        }, {
+          "dataNodeId" : "dn3",
+          "dataNodeAddress" : "127.0.0.1:53063",
+          "size" : 0,
+          "checksum" : "",
+          "updateTime" : 1774355227467
+        }, {
+          "dataNodeId" : "dn1",
+          "dataNodeAddress" : "127.0.0.1:53061",
+          "size" : 0,
+          "checksum" : "",
+          "updateTime" : 1774355227467
+        } ]
+      } ]
+    }
+  }
+}
