@@ -25,6 +25,3 @@ Thumbs.db
 # Temporary files
 *.log
 *.tmp
-
-# Local backup directory created during submodule migration
-SoftwareTesting/PJ1/SoftwareTestingDemo.local/

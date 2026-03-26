@@ -1,7 +1,28 @@
-3/11
+# A. 在子模块里单独开发并推送到 Gitee
+cd SoftwareTesting/PJ1/SoftwareTestingDemo
+git add .
+git commit -m "feat: ..."
+git push origin master
 
-1.
-完成信息安全的两个lab 并且完成拓展选做部分。 注意要认真写， 体现态度。
-信息安全建议读读论文，多了解信息，并在实验报告中体现出来，为之后的汇报做准备。
+# B. 回主库记录子模块指针并推送主库
+cd /d D:\DaSanXia
+git add SoftwareTesting/PJ1/SoftwareTestingDemo
+git commit -m "chore: update submodule pointer"
+git push origin main
 
-2.
+
+子模块有自己的 .gitignore 吗
+有，子模块本质是独立仓库，自己的 .gitignore、分支、提交历史都独立管理。
+主库的 .gitignore 不会替代子模块内部的 .gitignore 规则。
+主库提交什么时候会影响子模块
+主库只会影响“子模块指针”（gitlink）和 .gitmodules 配置。
+主库不会直接改子模块内部文件历史。
+典型流程是：你先在子模块里 commit+push，再回主库提交“子模块指针更新”。这时主库才“感知”到子模块版本变化。
+克隆主库会不会自动克隆子库
+默认 git clone 不会完整拉取子模块内容（只拿到子模块引用）。
+要一次性拉全，用：
+已经 clone 过再拉子模块，用：
+以后主库拉到新指针后，也要执行一次上面这条来同步子模块到对应提交。
+一句话总结：你现在的结构就是“主库管版本指针，子模块管自身历史”，两边是解耦的。
+
+已完成：我已明确回答你关于子模块 .gitignore 独立性、主库提交对子模块的实际影响边界，以及克隆主库时子模块是否自动拉取与正确命令。
