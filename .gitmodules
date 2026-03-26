@@ -1,0 +1,3 @@
+[submodule "SoftwareTesting/PJ1/SoftwareTestingDemo"]
+	path = SoftwareTesting/PJ1/SoftwareTestingDemo
+	url = https://gitee.com/cyroti/soft-ware-testing-demo.git
