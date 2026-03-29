@@ -1,115 +1,141 @@
-# my-hdfs 用户手册（主从复制版）
+# my-hdfs-sim（课程项目版）
 
-my-hdfs 是一个基于 gRPC 的简化分布式文件系统，包含 3 类进程：
+这是一个面向分布式系统课程的 HDFS 数据流模拟项目，核心目标是：
 
-- NameNode：管理元数据（文件、块、副本）
-- DataNode：存储块数据
-- Client CLI：发起读写请求
+- 支持 1 个 NameNode + 3 个及以上 DataNode
+- 使用 pipeline 方式进行副本传播
+- 同时支持“强一致写入”与“可观测不一致”实验模式
 
-当前版本采用基于领导者的复制（leader-based replication）：
+## 项目结构（已去除嵌套目录）
 
-- 每个块的首副本为主节点（leader）
-- 客户端只能写主节点
-- 主节点按顺序同步复制到所有从节点（followers）
-- 只有所有副本确认后，写入才算成功
+当前项目根目录就是 `my-hdfs`，不再使用 `pj/DistributedSystem` 这种嵌套形式。
 
-## 1. 环境要求
+- `src/main/java/edu/course/myhdfs`：Java 源码
+- `scripts`：启动/停止脚本
+- `data`：各 DataNode 本地落盘目录
+- `logs`：运行日志
 
-- JDK 17+
-- Maven 3.9+
-- Windows PowerShell
+## 架构说明
 
-## 2. 目录说明
+角色划分：
 
-```text
-src/main/proto/hdfs.proto                    gRPC 协议
-src/main/java/com/example/hdfs/namenode      NameNode 实现
-src/main/java/com/example/hdfs/datanode      DataNode 实现（主从复制转发）
-src/main/java/com/example/hdfs/client        Client 与 CLI
-data/dn1 data/dn2 data/dn3                   DataNode 本地数据目录
-data/fsimage.json                            NameNode 元数据快照
-```
+1. NameNode：返回元数据，指定主副本（Primary）
+2. DataNode：保存数据并按 pipeline 链路继续转发
+3. Client：通过命令行发起写入和读取
 
-## 3. 本地启动
+写入链路（pipeline）：
 
-建议 5 个终端：
+1. Client 写到主副本 `dn1`
+2. `dn1` 转发到 `dn2`
+3. `dn2` 转发到 `dn3`
+4. 直到尾节点
 
-- T1：dn1
-- T2：dn2
-- T3：dn3
-- T4：NameNode
-- T5：Client CLI
+## 一致性模式
 
-### 3.1 释放端口
+### 1) `SYNC`（同步复制）
 
-```powershell
-$ports = 50051,50061,50062,50063
-foreach ($p in $ports) {
-  Get-NetTCPConnection -LocalPort $p -State Listen -ErrorAction SilentlyContinue |
-    Select-Object -ExpandProperty OwningProcess -Unique |
-    ForEach-Object {
-      Write-Host "Killing process $_ on port $p"
-      Stop-Process -Id $_ -Force
-    }
-}
-```
+- 主副本只有在整条 pipeline 都成功后才返回成功
+- 成功返回后可认为各副本已一致
+- 适合讨论顺序一致性语义
 
-### 3.2 编译
+### 2) `ASYNC_OBSERVE`（实验观察模式）
 
-```bash
-mvn -q generate-sources generate-test-sources test-compile
-```
+- 主副本本地落盘后立即返回
+- 后续副本在后台继续传播
+- 客户端可在短时间窗口读到不一致状态
 
-### 3.3 启动服务
+## 如何放大不一致现象
+
+每个 DataNode 支持两类参数：
+
+- `forwardDelayMs`：转发固定延迟
+- `throttleBytesPerSec`：按带宽限速
+
+两者叠加后，复制窗口会变大，更容易观察到“先不一致、后收敛”。
+
+## 构建与运行
+
+### 1) 构建
 
 ```bash
-mvn -q "-Dexec.mainClass=com.example.hdfs.datanode.DataNodeServer" "-Dexec.args=dn1 50061 ./data/dn1" org.codehaus.mojo:exec-maven-plugin:3.5.0:java
+mvn -q -DskipTests compile
 ```
+
+### 2) 启动集群
 
 ```bash
-mvn -q "-Dexec.mainClass=com.example.hdfs.datanode.DataNodeServer" "-Dexec.args=dn2 50062 ./data/dn2" org.codehaus.mojo:exec-maven-plugin:3.5.0:java
+chmod +x scripts/*.sh
+./scripts/start_cluster.sh
 ```
+
+默认端口：
+
+- NameNode：`127.0.0.1:9000`
+- DataNode1：`127.0.0.1:9001`
+- DataNode2：`127.0.0.1:9002`
+- DataNode3：`127.0.0.1:9003`
+
+### 3) 停止集群
 
 ```bash
-mvn -q "-Dexec.mainClass=com.example.hdfs.datanode.DataNodeServer" "-Dexec.args=dn3 50063 ./data/dn3" org.codehaus.mojo:exec-maven-plugin:3.5.0:java
+./scripts/stop_cluster.sh
 ```
+
+## 客户端命令
+
+### 同步写入（写成功即全副本一致）
 
 ```bash
-mvn -q "-Dexec.mainClass=com.example.hdfs.namenode.NameNodeServer" "-Dexec.args=50051 ./data/fsimage.json dn1=127.0.0.1:50061,dn2=127.0.0.1:50062,dn3=127.0.0.1:50063" org.codehaus.mojo:exec-maven-plugin:3.5.0:java
+mvn -q -Dexec.mainClass=edu.course.myhdfs.ClientCli \
+  -Dexec.args='write report_sync value_sync sync' exec:java
 ```
+
+### 读取所有副本
 
 ```bash
-mvn -q "-Dexec.mainClass=com.example.hdfs.client.ClientCli" "-Dexec.args=127.0.0.1:50051" org.codehaus.mojo:exec-maven-plugin:3.5.0:java
+mvn -q -Dexec.mainClass=edu.course.myhdfs.ClientCli \
+  -Dexec.args='readall report_sync' exec:java
 ```
 
-## 4. 机制说明
-
-1. NameNode 分配块时返回 3 个副本地址。
-2. Client 只向主副本发起 `append`。
-3. 主副本本地写入后，同步向从副本传播同一写入。
-4. 任一从副本复制失败，整次写入失败。
-5. 从副本拒绝客户端直写请求（只接受主副本复制流）。
-
-## 5. CLI 命令
-
-| 命令 | 用途 | 示例 |
-| --- | --- | --- |
-| `open [path] [r/w]` | 打开文件返回 fd | `open /demo.txt w` |
-| `append [fd] [text]` | 追加文本 | `append 101 hello world` |
-| `read [fd]` | 读取当前内容 | `read 102` |
-| `close [fd]` | 关闭 fd | `close 101` |
-| `check [path]` | 检查副本一致性 | `check /demo.txt` |
-| `exit` | 退出 CLI | `exit` |
-
-## 6. 关键参数
-
-- `REPLICATION_FACTOR=3`
-- `REQUIRED_REPLICA_ACKS=3`
-- `RPC_TIMEOUT_MS=2000`
-- `PIPELINE_FORWARD_TIMEOUT_MS=2000`
-
-## 7. 测试
+### 不一致性演示
 
 ```bash
-mvn -q test
+mvn -q -Dexec.mainClass=edu.course.myhdfs.ClientCli \
+  -Dexec.args='demo report_async hello_async' exec:java
 ```
+
+`demo` 会自动执行：
+
+1. 异步写入
+2. 立刻读取所有副本（应看到不一致）
+3. 等待一段时间
+4. 再次读取（应看到收敛一致）
+
+## HTTP 接口
+
+NameNode：
+
+- `GET /allocate?file=<name>`
+- `GET /replicas`
+
+DataNode：
+
+- `PUT /write?file=<name>`（客户端入口）
+- `PUT /replicate?file=<name>`（节点间转发）
+- `GET /read?file=<name>`
+- `GET /state`
+- `GET /health`
+
+写入请求头：
+
+- `X-Consistency-Mode: SYNC | ASYNC_OBSERVE`
+- `X-Client-Id: <id>`
+- `X-Seq: <seq>`
+
+## 说明
+
+这是课程实验项目，不是生产级 HDFS。若要继续增强，可加入：
+
+- 选主与故障切换（epoch/term）
+- Quorum 读写策略
+- 校验与反熵修复机制
