@@ -1,5 +1,6 @@
 package edu.course.myhdfs;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public final class Models {
@@ -42,6 +43,78 @@ public final class Models {
         public List<ReplicaInfo> replicas;
     }
 
+    public static class AllocateRequest {
+        public String file;
+        public int blockSize;
+        public int replication;
+        public int fileSizeBytes;
+    }
+
+    public static class CommitRequest {
+        public String file;
+        public int fileSizeBytes;
+        public int blockSize;
+        public int replication;
+        public List<BlockMetadata> blocks;
+    }
+
+    public static class BlockMetadata {
+        public String blockId;
+        public int index;
+        public int sizeBytes;
+        public List<ReplicaInfo> replicas = new ArrayList<>();
+    }
+
+    public static class AllocationResponse {
+        public String file;
+        public int blockSize;
+        public int replication;
+        public int blockCount;
+        public List<BlockMetadata> blocks = new ArrayList<>();
+    }
+
+    public static class FileMetadata {
+        public String file;
+        public int fileSizeBytes;
+        public int blockSize;
+        public int replication;
+        public long createdAt;
+        public long updatedAt;
+        public List<BlockMetadata> blocks = new ArrayList<>();
+    }
+
+    public static class FileListResponse {
+        public List<FileMetadata> files = new ArrayList<>();
+    }
+
+    public static class BlockWriteRequest {
+        public String file;
+        public int index;
+        public int sizeBytes;
+        public String payload;
+    }
+
+    public static class BlockWriteAck {
+        public boolean ok;
+        public String nodeId;
+        public String blockId;
+        public String file;
+        public int index;
+        public int sizeBytes;
+        public String mode;
+        public String message;
+    }
+
+    public static class BlockReadResult {
+        public String nodeId;
+        public String blockId;
+        public String file;
+        public int index;
+        public int sizeBytes;
+        public boolean exists;
+        public String payload;
+    }
+
     public static class WriteAck {
         public boolean ok;
         public String nodeId;
@@ -61,7 +134,6 @@ public final class Models {
 
     public static class NodeState {
         public String nodeId;
-        public String nextUrl;
         public long forwardDelayMs;
         public long throttleBytesPerSec;
     }
