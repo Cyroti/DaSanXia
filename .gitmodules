@@ -2,3 +2,6 @@
 	path = SoftwareTesting/PJ1/SoftwareTestingDemo
 	url = https://gitee.com/cyroti/soft-ware-testing-demo.git
 	ignore = untracked
+[submodule "Compile/compile-2026-spring-lab"]
+	path = Compile/compile-2026-spring-lab
+	url = https://gitee.com/fdu-ssr/compile-2026-spring-lab.git

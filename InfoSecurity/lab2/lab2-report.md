@@ -27,7 +27,6 @@
 
 ## 3 实验环境
 
-- 操作系统：<!-- TODO: 填写你的操作系统 -->
 - 操作系统：Ubuntu 24.04.4 LTS (x86_64), Kernel 6.14.0-061400-generic
 - 编程语言：Python
 - 运行命令：`python des_scaffold.py`
